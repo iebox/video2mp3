@@ -21,6 +21,9 @@ def tms2seconds(hms):
     #return hms[0] * 3600 + hms[1] * 60 + hms[2]
     return (hms - datetime.datetime(1900, 1, 1)).total_seconds()
 
+def delta2tms(delta):
+    return datetime.datetime(1900,1,1) + delta
+
 def tmsdiff(t1, t2):
     return (t1-t2).total_seconds()
 
@@ -46,6 +49,8 @@ class Parser:
         i = 0
         last_end_tms = datetime.datetime(1900, 1, 1)
         clip_offset = 0
+        clips = []
+        lrc_str = ""
         while i < len(lines):
             line = lines[i]
             if line.find('-->') == -1:
@@ -70,21 +75,31 @@ class Parser:
             if len(s) == 0:
                 continue
 
-            print("[%s]%s" % (tms2lrc(tms), s))
+            #print("[%s]%s" % (tms2lrc(tms), s))
 
             point = tms2seconds(tms)
             last_end_point = tms2seconds(last_end_tms)
             if point - last_end_point > MARGIN:
+                clips.append(lrc_str)
                 self.clips.append(last_end_tms)
                 self.clips.append(tms)
                 clip_offset = tms
+                lrc_str = ""
 
-            clip_tms = tms - clip_offset
+            clip_tms = delta2tms(tms - clip_offset)
+            lrc_str += "[%s]%s\n" % (tms2lrc(clip_tms), s)
 
             last_end_tms = tms_end
         self.clips.append(last_end_tms)
+        clips.append(lrc_str)
 
         f.close()
+        i = 0
+        while i < len(clips):
+            f = open("%d.lrc" % i, 'w')
+            f.write(clips[i])
+            f.close()
+            i = i + 1
 
     def splitmp3(self):
         i = 1
@@ -102,6 +117,6 @@ if __name__ == "__main__":
         sys.exit(1)
 
     parser = Parser(sys.argv[1])
-    parser.getSubtitleFile()
+    #parser.getSubtitleFile()
     parser.srt2lrc(sys.argv[1])
-    parser.splitmp3()
+    #parser.splitmp3()
