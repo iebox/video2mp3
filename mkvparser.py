@@ -34,13 +34,20 @@ def seconds2tms(seconds):
     pass
 
 class Parser:
+    def __init__(self, mkv):
+        self.mkv = mkv
+        self.subtitle = self.mkv + ".srt"
+        self.clips = []
 
-    def srt2lrc(self, f):
-        f = open(sys.argv[1])
+    def getSubtitleFile(self):
+        cmd = "mkvextract tracks %s 5:%s" % (self.mkv, self.subtitle)
+        os.system(cmd)
+
+    def srt2lrc(self):
+        f = open(self.subtitle)
         lines = f.readlines()
         i = 0
         last_end_tms = (0, 0, 0, 0)
-        clips = []
         while i < len(lines):
             line = lines[i]
             if line.find('-->') == -1:
@@ -65,31 +72,35 @@ class Parser:
             if len(s) == 0:
                 continue
 
-            #print("[%.2d:%s.%.2s]%s" % (tms[0]*60 + tms[1], tms[2], tms[3], s))
+            print("[%.2d:%s.%.2s]%s" % (tms[0]*60 + tms[1], tms[2], tms[3], s))
 
             point = tms2seconds(tms)
             last_end_point = tms2seconds(last_end_tms)
             if point - last_end_point > MARGIN:
-                #print tms2str(last_end_tms), tms2str(tms)
-                clips.append(last_end_tms)
-                clips.append(tms)
+                self.clips.append(last_end_tms)
+                self.clips.append(tms)
             last_end_tms = tms_end
+        self.clips.append(last_end_tms)
 
         f.close()
 
-    def splitmp3(self, clips):
+    def splitmp3(self):
         i = 1
-        while i < len(clips):
+        while i < len(self.clips):
             if i % 2 == 0:
-                print tms2str(clips[i-1]), tms2str(clips[i]), tms2seconds(clips[i]) - tms2seconds(clips[i-1])
-                os.system("./mkv2mp3.sh %s" % sys.argv[1])
-
+                print tms2str(self.clips[i-1]), tms2str(self.clips[i]), tms2seconds(self.clips[i]) - tms2seconds(self.clips[i-1])
+                cmd = "ffmpeg -i %s -acodec libmp3lame -ss %s -to %s %d.mp3" % \
+                        (self.mkv, tms2str(self.clips[i-1]), tms2str(self.clips[i]), i/2)
+                os.system(cmd)
             i = i + 1
 
+if __name__ == "__main__":
 
-
-if len(sys.argv) != 2:
-    print("Usage srt2lrc.py file")
-    sys.exit(1)
+    if len(sys.argv) != 2:
+        print("Usage srt2lrc.py mkvfile")
+        sys.exit(1)
 
     parser = Parser(sys.argv[1])
+    parser.getSubtitleFile()
+    parser.srt2lrc()
+    parser.splitmp3()
