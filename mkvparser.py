@@ -31,33 +31,52 @@ def seconds2tms(seconds):
     pass
 
 class Parser:
-    def __init__(self, mkv):
-        self.mkv = mkv
-        #self.subtitle = os.path.basename(self.mkv) + ".srt"
+    def __init__(self, video):
+        self.title = ""
+        self.video = ""
+        filename, self.type = os.path.splitext(video)
+        if self.type == ".iso":
+            volume_path = os.popen("hdiutil mount %s" % video).read().strip().split("\t")[-1]
+            self.title = os.path.basename(volume_path)
+            self.video = os.path.join(volume_path, "BDMV/STREAM/00000.m2ts")
+        elif self.type == ".mkv":
+            if filename[-4:] == "CMCT":
+                infos = os.path.basename(filename).split(".")
+                self.title = ".".join(infos[1:-5])
+                self.year = infos[2]
+            else:
+                self.title = os.path.basename(filename)
+            self.video = video
+
         self.tms_clips = []
-        self.file_dir = os.path.basename(self.mkv)
-        os.system("mkdir \"%s\"" % self.file_dir)
-        self.subtitle = os.path.join(self.file_dir, "0.srt")
-        self.mp3 = os.path.join(self.file_dir, "0.mp3")
+        self.subtitle = os.path.join(self.title, "%s.srt" % self.title)
+        self.mp3 = os.path.join(self.title, "%s.mp3" % self.title)
         self.lyric = ""
         self.lyrics_clips = []
 
-    def getSubtitleFile(self):
-        if not os.path.exists(self.subtitle):
-            track_id = os.popen("mkvinfo \"%s\"|grep \"track ID for mkvmerge\"|tail -1" % self.mkv).read()[-3:-2]
-            track_id = 4
-            cmd = "mkvextract tracks \"%s\" %s:%s" % (self.mkv, track_id, self.subtitle)
-            print cmd
-            os.system(cmd)
+        os.system("mkdir \"%s\"" % self.title)
 
     def getmp3(self):
         if not os.path.exists(self.mp3):
             cmd = "ffmpeg -i \"%s\" -acodec libmp3lame -ar 44100 -ab 192k \"%s\"" % \
-                    (self.mkv, self.mp3)
+                    (self.video, self.mp3)
+            os.system(cmd)
+
+        cmd = "id3v2 -t %s -c tingmofun \"%s\"" % (self.title, self.mp3)
+        os.system(cmd)
+
+    def getSubtitleFile(self):
+        if not os.path.exists(self.subtitle) and self.type == ".mkv":
+            print os.popen("mkvinfo \"%s\"|grep -E \"track ID for mkvmerge|Codec ID|Name:\"" % self.video).read()
+            track_id = raw_input("please input track id:")
+            cmd = "mkvextract tracks \"%s\" %s:%s" % (self.video, track_id, self.subtitle)
             os.system(cmd)
 
     def srt2lrc(self):
-        os.system("rm -f \"%s\"/*.lrc" % self.file_dir)
+        if not os.path.exists(self.subtitle):
+            print "no subrip file found"
+            return
+        os.system("rm -f \"%s\"/*.lrc" % self.title)
         f = open(self.subtitle)
         lines = f.readlines()
         i = 0
@@ -110,24 +129,24 @@ class Parser:
         f.close()
         i = 1
         while i < len(self.lyrics_clips):
-            f = open(os.path.join(self.file_dir, "%d.lrc" % i), 'w')
+            f = open(os.path.join(self.title, "%d.lrc" % i), 'w')
             f.write(self.lyrics_clips[i])
             f.close()
             i = i + 1
 
-        f = open(os.path.join(self.file_dir, "0.lrc"), 'w')
+        f = open(os.path.join(self.title, "0.lrc"), 'w')
         f.write(self.lyric)
         f.close()
 
     def splitmp3(self):
-        os.system("rm -f \"%s\"/*.mp3" % self.file_dir)
+        os.system("rm -f \"%s\"/*.mp3" % self.title)
         i = 1
         while i < len(self.tms_clips):
             if i % 2 == 0:
-                mp3_path = os.path.join(self.file_dir, "%d.mp3" % (i/2))
+                mp3_path = os.path.join(self.title, "%d.mp3" % (i/2))
                 print tms2str(self.tms_clips[i-1]), tms2str(self.tms_clips[i]), tmsdiff(self.tms_clips[i], self.tms_clips[i-1])
-                cmd = "ffmpeg -i \"%s\" -acodec libmp3lame -ss %s -to %s -ar 44100 -ab 192k \"%s\"" % \
-                        (self.mkv, tms2str(self.tms_clips[i-1]), tms2str(self.tms_clips[i]), mp3_path)
+                cmd = "ffmpeg -i \"%s\" -acodec copy -ss %s -to %s \"%s\"" % \
+                        (self.mp3, tms2str(self.tms_clips[i-1]), tms2str(self.tms_clips[i]), mp3_path)
                 os.system(cmd)
                 #cmd = "id3v2 --USLT \"%s\" \"%s\"" % (self.lyrics_clips[i/2], mp3_path)
                 #os.system(cmd)
@@ -137,15 +156,11 @@ class Parser:
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage srt2lrc.py video_file srt_file")
+        print("Usage srt2lrc.py video_file")
         sys.exit(1)
 
     parser = Parser(sys.argv[1])
-    if len(sys.argv) >= 3:
-        os.system("cp \"%s\" \"%s\"" % (sys.argv[2], parser.subtitle))
-    else:
-        parser.getSubtitleFile()
-
     parser.getmp3()
-    parser.srt2lrc()
+    parser.getSubtitleFile()
+    #parser.srt2lrc()
     #parser.splitmp3()
