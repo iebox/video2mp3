@@ -86,6 +86,8 @@ class Parser:
         clip_offset = datetime.datetime(1900, 1, 1)
         self.lyrics_clips = []
         lrc_str = ""
+        isFirst = 1
+        self.tms_clips.append(datetime.datetime(1900,1,1))
         while i < len(lines):
             line = lines[i]
             if line.find('-->') == -1:
@@ -112,14 +114,24 @@ class Parser:
 
             self.lyric += "[%s]%s\n" % (tms2lrc(tms), s)
 
-            point = tms2seconds(tms)
-            last_end_point = tms2seconds(last_end_tms)
-            if point - last_end_point > self.margin:
-                self.lyrics_clips.append(lrc_str)
-                self.tms_clips.append(last_end_tms)
+            if tms.minute % 20 == 0 and isFirst:
+                isFirst = 0
                 self.tms_clips.append(tms)
+
+                self.lyrics_clips.append(lrc_str)
                 clip_offset = tms
                 lrc_str = ""
+            if tms.minute % 20 != 0:
+                isFirst = 1
+
+            #point = tms2seconds(tms)
+            #last_end_point = tms2seconds(last_end_tms)
+            #if point - last_end_point > self.margin:
+            #    self.lyrics_clips.append(lrc_str)
+            #    self.tms_clips.append(last_end_tms)
+            #    self.tms_clips.append(tms)
+            #    clip_offset = tms
+            #    lrc_str = ""
 
             clip_tms = delta2tms(tms - clip_offset)
             lrc_str += "[%s]%s\n" % (tms2lrc(clip_tms), s)
@@ -129,9 +141,9 @@ class Parser:
         self.lyrics_clips.append(lrc_str)
 
         f.close()
-        i = 1
+        i = 0
         while i < len(self.lyrics_clips):
-            f = open(os.path.join(self.title, "%d.lrc" % i), 'w')
+            f = open(os.path.join(self.title, "%d.lrc" % (i+1)), 'w')
             f.write(self.lyrics_clips[i])
             f.close()
             i = i + 1
@@ -144,16 +156,15 @@ class Parser:
         os.system("cd \"%s\";ls *.mp3|grep -v %s|xargs rm -f" % (self.title, self.title))
         i = 1
         while i < len(self.tms_clips):
-            if i % 2 == 0:
-                mp3_path = os.path.join(self.title, "%d.mp3" % (i/2))
-                print tms2str(self.tms_clips[i-1]), tms2str(self.tms_clips[i]), tmsdiff(self.tms_clips[i], self.tms_clips[i-1])
-                cmd = "ffmpeg -i \"%s\" -acodec copy -ss %s -to %s \"%s\"" % \
-                        (self.mp3, tms2str(self.tms_clips[i-1]), tms2str(self.tms_clips[i]), mp3_path)
-                os.system(cmd)
-                #cmd = "id3v2 --USLT \"%s\" \"%s\"" % (self.lyrics_clips[i/2], mp3_path)
-                #os.system(cmd)
-                cmd = "id3v2 -t %s_%d-%d -c tingmofun \"%s\"" % (self.title, len(self.tms_clips)/2, i/2, mp3_path)
-                os.system(cmd)
+            mp3_path = os.path.join(self.title, "%d.mp3" % i)
+            print tms2str(self.tms_clips[i-1]), tms2str(self.tms_clips[i]), tmsdiff(self.tms_clips[i], self.tms_clips[i-1])
+            cmd = "ffmpeg -i \"%s\" -acodec copy -ss %s -to %s \"%s\"" % \
+                    (self.mp3, tms2str(self.tms_clips[i-1]), tms2str(self.tms_clips[i]), mp3_path)
+            os.system(cmd)
+            #cmd = "id3v2 --USLT \"%s\" \"%s\"" % (self.lyrics_clips[i/2], mp3_path)
+            #os.system(cmd)
+            cmd = "id3v2 -t %s_%d-%d -c tingmofun \"%s\"" % (self.title, len(self.tms_clips)-1, i, mp3_path)
+            os.system(cmd)
             i = i + 1
 
 if __name__ == "__main__":
@@ -164,11 +175,10 @@ if __name__ == "__main__":
     parser = Parser(sys.argv[1])
     parser.getmp3()
     parser.getSubtitleFile()
-    while len(parser.lyrics_clips) < 8 or len(parser.lyrics_clips) > 20:
-        if len(parser.lyrics_clips) < 8:
-            parser.margin = parser.margin - 10
-        else:
-            parser.margin = parser.margin + 10
-        parser.srt2lrc()
-    print len(parser.lyrics_clips)
+    #while len(parser.lyrics_clips) < 8 or len(parser.lyrics_clips) > 20:
+    #    if len(parser.lyrics_clips) < 8:
+    #        parser.margin = parser.margin - 10
+    #    else:
+    #        parser.margin = parser.margin + 10
+    parser.srt2lrc()
     parser.splitmp3()
