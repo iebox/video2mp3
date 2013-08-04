@@ -17,6 +17,8 @@ def tms2lrc(tms):
 
 def tms2seconds(hms):
     #return hms[0] * 3600 + hms[1] * 60 + hms[2]
+    if hms.year == 1901:
+        return -500
     return (hms - datetime.datetime(1900, 1, 1)).total_seconds()
 
 def delta2tms(delta):
@@ -47,7 +49,6 @@ class Parser:
                 self.title = os.path.basename(filename)
             self.video = video
 
-        self.tms_clips = []
         self.subtitle = os.path.join(self.title, "%s.srt" % self.title)
         self.mp3 = os.path.join(self.title, "%s.mp3" % self.title)
         self.lyric = ""
@@ -73,6 +74,7 @@ class Parser:
             os.system(cmd)
 
     def srt2lrc(self):
+        self.tms_clips = []
         if not os.path.exists(self.subtitle):
             print "no subrip file found"
             return
@@ -80,7 +82,7 @@ class Parser:
         f = open(self.subtitle)
         lines = f.readlines()
         i = 0
-        last_end_tms = datetime.datetime(1899, 1, 1)
+        last_end_tms = datetime.datetime(1901, 1, 1)
         clip_offset = datetime.datetime(1900, 1, 1)
         self.lyrics_clips = []
         lrc_str = ""
@@ -168,4 +170,5 @@ if __name__ == "__main__":
         else:
             parser.margin = parser.margin + 10
         parser.srt2lrc()
+    print len(parser.lyrics_clips)
     parser.splitmp3()
