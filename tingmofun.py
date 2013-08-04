@@ -6,8 +6,6 @@ import re
 import os
 import time, datetime
 
-MARGIN = 40
-
 def str2tms(str):
     return datetime.datetime.strptime(str.strip(), "%H:%M:%S,%f")
 
@@ -32,6 +30,7 @@ def seconds2tms(seconds):
 
 class Parser:
     def __init__(self, video):
+        self.margin = 90
         self.title = ""
         self.video = ""
         filename, self.type = os.path.splitext(video)
@@ -54,7 +53,8 @@ class Parser:
         self.lyric = ""
         self.lyrics_clips = []
 
-        os.system("mkdir \"%s\"" % self.title)
+        if not os.path.exists(self.title):
+            os.system("mkdir \"%s\"" % self.title)
 
     def getmp3(self):
         if not os.path.exists(self.mp3):
@@ -62,8 +62,8 @@ class Parser:
                     (self.video, self.mp3)
             os.system(cmd)
 
-        cmd = "id3v2 -t %s -c tingmofun \"%s\"" % (self.title, self.mp3)
-        os.system(cmd)
+            cmd = "id3v2 -t %s -c tingmofun \"%s\"" % (self.title, self.mp3)
+            os.system(cmd)
 
     def getSubtitleFile(self):
         if not os.path.exists(self.subtitle) and self.type == ".mkv":
@@ -112,7 +112,7 @@ class Parser:
 
             point = tms2seconds(tms)
             last_end_point = tms2seconds(last_end_tms)
-            if point - last_end_point > MARGIN:
+            if point - last_end_point > self.margin:
                 self.lyrics_clips.append(lrc_str)
                 self.tms_clips.append(last_end_tms)
                 self.tms_clips.append(tms)
@@ -134,12 +134,12 @@ class Parser:
             f.close()
             i = i + 1
 
-        f = open(os.path.join(self.title, "0.lrc"), 'w')
+        f = open(os.path.join(self.title, "%s.lrc" % self.title), 'w')
         f.write(self.lyric)
         f.close()
 
     def splitmp3(self):
-        os.system("rm -f \"%s\"/*.mp3" % self.title)
+        os.system("cd \"%s\";ls *.mp3|grep -v %s|xargs rm -f" % (self.title, self.title))
         i = 1
         while i < len(self.tms_clips):
             if i % 2 == 0:
@@ -150,8 +150,8 @@ class Parser:
                 os.system(cmd)
                 #cmd = "id3v2 --USLT \"%s\" \"%s\"" % (self.lyrics_clips[i/2], mp3_path)
                 #os.system(cmd)
-                #cmd = "id3v2 -c tingmofun \"%s\"" % mp3_path
-                #os.system(cmd)
+                cmd = "id3v2 -t %s_%d-%d -c tingmofun \"%s\"" % (self.title, len(self.tms_clips)/2, i/2, mp3_path)
+                os.system(cmd)
             i = i + 1
 
 if __name__ == "__main__":
@@ -162,5 +162,10 @@ if __name__ == "__main__":
     parser = Parser(sys.argv[1])
     parser.getmp3()
     parser.getSubtitleFile()
-    #parser.srt2lrc()
-    #parser.splitmp3()
+    while len(parser.lyrics_clips) < 8 or len(parser.lyrics_clips) > 20:
+        if len(parser.lyrics_clips) < 8:
+            parser.margin = parser.margin - 10
+        else:
+            parser.margin = parser.margin + 10
+        parser.srt2lrc()
+    parser.splitmp3()
