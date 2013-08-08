@@ -31,10 +31,11 @@ def seconds2tms(seconds):
     pass
 
 class Parser:
-    def __init__(self, video):
+    def __init__(self, video, root):
         self.margin = 90
         self.title = ""
         self.video = ""
+        self.root = root
         filename, self.type = os.path.splitext(video)
         if self.type == ".iso":
             volume_path = os.popen("hdiutil mount %s" % video).read().strip().split("\t")[-1]
@@ -49,13 +50,13 @@ class Parser:
                 self.title = os.path.basename(filename)
             self.video = video
 
-        self.subtitle = os.path.join(self.title, "%s.srt" % self.title)
-        self.mp3 = os.path.join(self.title, "%s.mp3" % self.title)
+        self.subtitle = os.path.join(self.root, self.title, "%s.srt" % self.title)
+        self.mp3 = os.path.join(self.root, self.title, "%s.mp3" % self.title)
         self.lyric = ""
         self.lyrics_clips = []
 
         if not os.path.exists(self.title):
-            os.system("mkdir \"%s\"" % self.title)
+            os.system("mkdir \"%s\"" % os.path.join(self.root, self.title))
 
     def getmp3(self):
         if not os.path.exists(self.mp3):
@@ -70,8 +71,13 @@ class Parser:
         if not os.path.exists(self.subtitle) and self.type == ".mkv":
             print os.popen("mkvinfo \"%s\"|grep -E \"track ID for mkvmerge|Codec ID|Name:\"" % self.video).read()
             track_id = raw_input("please input track id:")
-            cmd = "mkvextract tracks \"%s\" %s:%s" % (self.video, track_id, self.subtitle)
-            os.system(cmd)
+            type = os.popen("mkvinfo \"%s\"|grep \"Codec ID\"" % self.video).readlines()[int(track_id)].split("/")[-1].strip()
+            print type
+            if type == "ASS":
+                os.system("mkvextract tracks \"%s\" %s:%s.ass" % (self.video, track_id, self.subtitle))
+                os.system("ffmpeg -i %s.ass -scodec srt %s" % (self.subtitle, subtitle))
+            else:
+                os.system("mkvextract tracks \"%s\" %s:%s" % (self.video, track_id, self.subtitle))
 
     def srt2lrc(self):
         self.tms_clips = []
@@ -108,9 +114,9 @@ class Parser:
                 s = s + lines[i].strip()
                 i = i + 1
 
-            s = re.sub("<.*>", "", s)
-            if len(s) == 0:
-                continue
+            #s = re.sub("<.*>", "", s)
+            #if len(s) == 0:
+            #    continue
 
             self.lyric += "[%s]%s\n" % (tms2lrc(tms), s)
 
@@ -143,12 +149,12 @@ class Parser:
         f.close()
         i = 0
         while i < len(self.lyrics_clips):
-            f = open(os.path.join(self.title, "%d.lrc" % (i+1)), 'w')
+            f = open(os.path.join(self.root, self.title, "%d.lrc" % (i+1)), 'w')
             f.write(self.lyrics_clips[i])
             f.close()
             i = i + 1
 
-        f = open(os.path.join(self.title, "%s.lrc" % self.title), 'w')
+        f = open(os.path.join(self.root, self.title, "%s.lrc" % self.title), 'w')
         f.write(self.lyric)
         f.close()
 
@@ -156,7 +162,7 @@ class Parser:
         os.system("cd \"%s\";ls *.mp3|grep -v %s|xargs rm -f" % (self.title, self.title))
         i = 1
         while i < len(self.tms_clips):
-            mp3_path = os.path.join(self.title, "%d.mp3" % i)
+            mp3_path = os.path.join(self.root, self.title, "%d.mp3" % i)
             print tms2str(self.tms_clips[i-1]), tms2str(self.tms_clips[i]), tmsdiff(self.tms_clips[i], self.tms_clips[i-1])
             cmd = "ffmpeg -i \"%s\" -acodec copy -ss %s -to %s \"%s\"" % \
                     (self.mp3, tms2str(self.tms_clips[i-1]), tms2str(self.tms_clips[i]), mp3_path)
@@ -168,11 +174,11 @@ class Parser:
             i = i + 1
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage srt2lrc.py video_file")
+    if len(sys.argv) < 3:
+        print("Usage srt2lrc.py video_file outputdir")
         sys.exit(1)
 
-    parser = Parser(sys.argv[1])
+    parser = Parser(sys.argv[1], sys.argv[2])
     parser.getmp3()
     parser.getSubtitleFile()
     #while len(parser.lyrics_clips) < 8 or len(parser.lyrics_clips) > 20:
