@@ -33,7 +33,7 @@ def seconds2tms(seconds):
 class Parser:
     def __init__(self, video, root):
         self.margin = 90
-        self.title = ""
+        self.title = "default"
         self.video = ""
         self.root = root
         filename, self.type = os.path.splitext(video)
@@ -55,7 +55,7 @@ class Parser:
         self.lyric = ""
         self.lyrics_clips = []
 
-        if not os.path.exists(self.title):
+        if not os.path.exists(os.path.join(self.root, self.title)):
             os.system("mkdir \"%s\"" % os.path.join(self.root, self.title))
 
     def getmp3(self):
@@ -74,8 +74,9 @@ class Parser:
             type = os.popen("mkvinfo \"%s\"|grep \"Codec ID\"" % self.video).readlines()[int(track_id)].split("/")[-1].strip()
             print type
             if type == "ASS":
-                os.system("mkvextract tracks \"%s\" %s:%s.ass" % (self.video, track_id, self.subtitle))
-                os.system("ffmpeg -i %s.ass -scodec srt %s" % (self.subtitle, subtitle))
+                path = os.path.join(self.root, self.title, "%s.ass" % self.title)
+                os.system("mkvextract tracks \"%s\" %s:%s" % (self.video, track_id, path))
+                os.system("ffmpeg -i %s -scodec srt %s" % (path, self.subtitle))
             else:
                 os.system("mkvextract tracks \"%s\" %s:%s" % (self.video, track_id, self.subtitle))
 
@@ -179,8 +180,8 @@ if __name__ == "__main__":
         sys.exit(1)
 
     parser = Parser(sys.argv[1], sys.argv[2])
-    parser.getmp3()
     parser.getSubtitleFile()
+    parser.getmp3()
     #while len(parser.lyrics_clips) < 8 or len(parser.lyrics_clips) > 20:
     #    if len(parser.lyrics_clips) < 8:
     #        parser.margin = parser.margin - 10
