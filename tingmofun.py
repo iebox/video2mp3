@@ -74,7 +74,7 @@ class Parser:
             type = os.popen("mkvinfo \"%s\"|grep \"Codec ID\"" % self.video).readlines()[int(track_id)].split("/")[-1].strip()
             print type
             if type == "ASS":
-                path = os.path.join(self.root, self.title, "%s.ass" % self.title)
+                path = os.path.join(self.root, "%s.ass" % self.title)
                 os.system("mkvextract tracks \"%s\" %s:%s" % (self.video, track_id, path))
                 os.system("ffmpeg -i %s -scodec srt %s" % (path, self.subtitle))
             else:
@@ -121,7 +121,7 @@ class Parser:
 
             self.lyric += "[%s]%s\n" % (tms2lrc(tms), s)
 
-            if tms.minute % 20 == 0 and isFirst:
+            if tms.minute % 20 == 0 and isFirst and tms2seconds(tms) > 60:
                 isFirst = 0
                 self.tms_clips.append(tms)
 
