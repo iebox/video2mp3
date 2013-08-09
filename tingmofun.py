@@ -115,9 +115,9 @@ class Parser:
                 s = s + lines[i].strip()
                 i = i + 1
 
-            #s = re.sub("<.*>", "", s)
-            #if len(s) == 0:
-            #    continue
+            s = re.sub("<.*?>", "", s)
+            if len(s) == 0:
+                continue
 
             self.lyric += "[%s]%s\n" % (tms2lrc(tms), s)
 
