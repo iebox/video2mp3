@@ -35,7 +35,6 @@ class Parser:
         self.margin = 90
         self.title = "default"
         self.video = ""
-        self.root = root
         filename, self.type = os.path.splitext(video)
         if self.type == ".iso":
             volume_path = os.popen("hdiutil mount %s" % video).read().strip().split("\t")[-1]
@@ -50,13 +49,14 @@ class Parser:
                 self.title = os.path.basename(filename)
             self.video = video
 
-        self.subtitle = os.path.join(self.root, self.title, "%s.srt" % self.title)
-        self.mp3 = os.path.join(self.root, self.title, "%s.mp3" % self.title)
+        self.root = os.path.join(root, self.title)
+        self.subtitle = os.path.join(self.root, "%s.srt" % self.title)
+        self.mp3 = os.path.join(self.root, "%s.mp3" % self.title)
         self.lyric = ""
         self.lyrics_clips = []
 
-        if not os.path.exists(os.path.join(self.root, self.title)):
-            os.system("mkdir \"%s\"" % os.path.join(self.root, self.title))
+        if not os.path.exists(self.root):
+            os.system("mkdir \"%s\"" % self.root)
 
     def getmp3(self):
         if not os.path.exists(self.mp3):
@@ -85,7 +85,7 @@ class Parser:
         if not os.path.exists(self.subtitle):
             print "no subrip file found"
             return
-        os.system("rm -f \"%s\"/*.lrc" % self.title)
+        os.system("rm -f \"%s\"/*.lrc" % self.root)
         f = open(self.subtitle)
         lines = f.readlines()
         i = 0
@@ -150,20 +150,20 @@ class Parser:
         f.close()
         i = 0
         while i < len(self.lyrics_clips):
-            f = open(os.path.join(self.root, self.title, "%d.lrc" % (i+1)), 'w')
+            f = open(os.path.join(self.root, "%d.lrc" % (i+1)), 'w')
             f.write(self.lyrics_clips[i])
             f.close()
             i = i + 1
 
-        f = open(os.path.join(self.root, self.title, "%s.lrc" % self.title), 'w')
+        f = open(os.path.join(self.root, "%s.lrc" % self.title), 'w')
         f.write(self.lyric)
         f.close()
 
     def splitmp3(self):
-        os.system("cd \"%s\";ls *.mp3|grep -v %s|xargs rm -f" % (self.title, self.title))
+        os.system("cd \"%s\";ls *.mp3|grep -v %s|xargs rm -f" % (self.root, self.title))
         i = 1
         while i < len(self.tms_clips):
-            mp3_path = os.path.join(self.root, self.title, "%d.mp3" % i)
+            mp3_path = os.path.join(self.root, "%d.mp3" % i)
             print tms2str(self.tms_clips[i-1]), tms2str(self.tms_clips[i]), tmsdiff(self.tms_clips[i], self.tms_clips[i-1])
             cmd = "ffmpeg -i \"%s\" -acodec copy -ss %s -to %s \"%s\"" % \
                     (self.mp3, tms2str(self.tms_clips[i-1]), tms2str(self.tms_clips[i]), mp3_path)
