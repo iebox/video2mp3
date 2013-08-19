@@ -1,0 +1,3 @@
+#!/bin/sh
+
+/Applications/Mkvtoolnix.app/Contents/MacOS/mkvinfo $*
