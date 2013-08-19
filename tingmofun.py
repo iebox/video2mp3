@@ -160,7 +160,7 @@ class Parser:
         f.close()
 
     def splitmp3(self):
-        os.system("cd \"%s\";ls *.mp3|grep -v %s|xargs rm -f" % (self.root, self.title))
+        os.system("rm -f \"%s\"/[0-9].mp3" % self.root)
         i = 1
         while i < len(self.tms_clips):
             mp3_path = os.path.join(self.root, "%d.mp3" % i)
